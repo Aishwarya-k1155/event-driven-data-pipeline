@@ -14,3 +14,4 @@ resource "aws_s3_bucket" "processed_data" {
   bucket = "${var.project_name}-processed-data-${random_id.suffix.hex}"
 }
 
+
