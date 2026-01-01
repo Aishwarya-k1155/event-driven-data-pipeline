@@ -1,42 +1,20 @@
-############################
-# IAM ROLE FOR LAMBDA
-############################
-resource "aws_iam_role" "lambda_role" {
-  name = "${var.project_name}-lambda-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = {
-        Service = "lambda.amazonaws.com"
-      }
-      Action = "sts:AssumeRole"
-    }]
-  })
+# Read existing IAM role (DO NOT create)
+data "aws_iam_role" "lambda_role" {
+  name = "event-driven-data-pipeline-lambda-role"
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
-  role       = aws_iam_role.lambda_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-############################
-# LAMBDA FUNCTION
-############################
+# Lambda function
 resource "aws_lambda_function" "s3_processor" {
-  function_name = "${var.project_name}-s3-processor"
-  role          = aws_iam_role.lambda_role.arn
-  handler       = "lambda_function.lambda_handler"
+  function_name = "s3-processor"
   runtime       = "python3.9"
+  handler       = "lambda_function.lambda_handler"
+  role          = data.aws_iam_role.lambda_role.arn
 
-  filename         = "../lambda/lambda_function.zip"
-  source_code_hash = filebase64sha256("../lambda/lambda_function.zip")
+  filename         = "${path.module}/../lambda/lambda_function.zip"
+  source_code_hash = filebase64sha256("${path.module}/../lambda/lambda_function.zip")
 }
 
-############################
-# ALLOW S3 TO INVOKE LAMBDA
-############################
+# Allow S3 to invoke Lambda
 resource "aws_lambda_permission" "allow_s3" {
   statement_id  = "AllowS3Invoke"
   action        = "lambda:InvokeFunction"
@@ -45,9 +23,7 @@ resource "aws_lambda_permission" "allow_s3" {
   source_arn    = aws_s3_bucket.raw_data.arn
 }
 
-############################
-# S3 NOTIFICATION TRIGGER
-############################
+# S3 notification
 resource "aws_s3_bucket_notification" "raw_bucket_notification" {
   bucket = aws_s3_bucket.raw_data.id
 
